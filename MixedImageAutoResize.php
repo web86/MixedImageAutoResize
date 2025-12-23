@@ -144,7 +144,20 @@ if ($sourceFile !== $correctFile) {
 }
 
 // ====== ЗАГРУЖАЕМ ИСХОДНИК ======
-$src = imagecreatefromjpeg($sourceFile);
+switch ($ext) {
+    case 'jpg':
+    case 'jpeg':
+        $src = imagecreatefromjpeg($sourceFile);
+        break;
+
+    case 'png':
+        $src = imagecreatefrompng($sourceFile);
+        break;
+
+    default:
+        return;
+}
+
 if (!$src) {
     return;
 }
@@ -154,7 +167,7 @@ $srcH = imagesy($src);
 $srcTime = filemtime($sourceFile);
 
 // ====== ФУНКЦИЯ COVER ======
-function miResizeCover($src, $srcW, $srcH, $dstW, $dstH) {
+function miResizeCover($src, $srcW, $srcH, $dstW, $dstH, $ext) {
 
     $srcRatio = $srcW / $srcH;
     $dstRatio = $dstW / $dstH;
@@ -172,6 +185,14 @@ function miResizeCover($src, $srcW, $srcH, $dstW, $dstH) {
     }
 
     $dst = imagecreatetruecolor($dstW, $dstH);
+    
+    if ($ext === 'png') {
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $dstW, $dstH, $transparent);
+    }
+    
     imagecopyresampled(
         $dst, $src,
         0, 0,
@@ -199,8 +220,12 @@ foreach ($sizes as $suffix => [$w, $h]) {
         continue;
     }
 
-    $dst = miResizeCover($src, $srcW, $srcH, $w, $h);
-    imagejpeg($dst, $target, $quality);
+    $dst = miResizeCover($src, $srcW, $srcH, $w, $h, $ext);
+    if ($ext === 'png') {
+    imagepng($dst, $target, 6); // 0–9, 6 = оптимум
+    } else {
+        imagejpeg($dst, $target, $quality);
+    }
     imagedestroy($dst);
 }
 
