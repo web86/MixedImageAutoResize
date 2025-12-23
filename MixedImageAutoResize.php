@@ -2,8 +2,59 @@
 /**
  * MixedImageAutoResize
  * MODX 2.8.8
- * Событие: OnDocFormSave
  */
+
+// Проверка - если ресурс удален то удаляем и его картинки
+if ($modx->event->name === 'OnBeforeEmptyTrash') {
+
+    $ids = $modx->event->params['ids'] ?? [];
+    if (empty($ids)) {
+        return;
+    }
+
+    $tvName = 'image';
+    $basePath = $modx->getOption('base_path');
+
+    /** @var modTemplateVar $tv */
+    $tv = $modx->getObject('modTemplateVar', ['name' => $tvName]);
+    if (!$tv) {
+        return;
+    }
+
+    foreach ($ids as $id) {
+
+        /** @var modResource $res */
+        $res = $modx->getObject('modResource', $id);
+        if (!$res) {
+            continue;
+        }
+
+        $image = $res->getTVValue($tvName);
+        if (empty($image)) {
+            continue;
+        }
+
+        $source = $basePath . ltrim($image, '/');
+        if (!file_exists($source)) {
+            continue;
+        }
+
+        $info = pathinfo($source);
+        $dir  = $info['dirname'];
+        $name = $info['filename'];
+        $ext  = $info['extension'];
+
+        // основной файл
+        @unlink($dir . '/' . $name . '.' . $ext);
+
+        // размеры
+        @unlink($dir . '/' . $name . '-L.' . $ext);
+        @unlink($dir . '/' . $name . '-S.' . $ext);
+    }
+
+    return;
+}
+
 
 if ($modx->event->name !== 'OnDocFormSave') {
     return;
@@ -21,7 +72,7 @@ if ($modx->getOption('mi_autoresize_processed')) {
 $modx->setOption('mi_autoresize_processed', true);
 
 // ====== НАСТРОЙКИ ======
-$tvName  = 'image'; // имя TV MixedImage
+$tvName  = 'YurAdrMainPic'; // имя TV MixedImage
 $quality = 82;
 
 $sizes = [
@@ -48,7 +99,7 @@ $ext  = strtolower($pathInfo['extension'] ?? '');
 $dir  = $pathInfo['dirname'];
 $name = $pathInfo['filename'];
 
-if (!in_array($ext, ['jpg', 'jpeg'])) {
+if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
     return;
 }
 
